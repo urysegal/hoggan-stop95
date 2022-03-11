@@ -10,8 +10,11 @@ The work is copyrighted to Philip Hogan and other authors mentioned in specific 
 
 To build the executable "stop" on Ubuntu :
 
+```
+   cd <source directory>
    mkdir build
    cd build/
    cmake ..
    make
+```
 
