@@ -7,3 +7,11 @@ STOP: A Slater-Type Orbital Package for Molecular Electronic Structure Determina
 This code is being modified to be used by the WebQC system. If you need the original code, please download the "original" tag.
 
 The work is copyrighted to Philip Hogan and other authors mentioned in specific source files.
+
+To build the executable "stop" on Ubuntu :
+
+   mkdir build
+   cd build/
+   cmake ..
+   make
+
