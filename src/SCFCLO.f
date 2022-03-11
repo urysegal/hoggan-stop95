@@ -1,0 +1,241 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C* THIS PACKAGE IS THE SCF INVOLVED IN THE STOP PACKAGE. INCH ALLAH  *C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE SCFCLO(NATOM,NCHARG, NUMAT,NORBAT,ENC,SOVL,HCORE,
+     $                                                HZCORE,FATIMA)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "./lib95/SIZE.INCL"
+
+      DIMENSION NUMAT(*),NORBAT(*)
+      DIMENSION SOVL(N_ORB,N_ORB), HCORE(N_ORB,N_ORB)
+      DIMENSION HZCORE(N_ORB,N_ORB)
+      DIMENSION SOVLP(N_ORB,N_ORB),HCORP(N_ORB,N_ORB), EIGV(N_ORB),
+     $          EIGF(N_ORB,N_ORB), AUX(2*N_ORB), PMN(N_ORB,N_ORB)
+
+      DIMENSION FOCK(N_ORB,N_ORB), FOCKP(N_ORB,N_ORB)
+      DIMENSION EDENS(N_ORB), CHDNS(N_ORB, N_ORB)
+      DIMENSION FATIMA(*)
+
+
+C.... TOTAL NUMBER OF ATOMIC ORBITALS
+
+      NATO = 0
+
+      DO 5 I=1, NATOM
+       NATO = NATO + NORBAT(I)
+ 5    CONTINUE
+
+
+C.... COMPUTATION OF THE NUMBER OF OCCUPIED STATES FOR A CLOSED SHELL
+
+      NOCC = 0
+
+      DO 10 I=1, NATOM
+       NOCC = NOCC + NUMAT(I)
+ 10   CONTINUE
+
+      NOCC = (NOCC-NCHARG)/2
+
+C.... PRINTING THE OVERLAP MATRIX
+
+      WRITE(*, 1)
+ 1    FORMAT(/, 14HOVERLAP MATRIX , /, 14(1H-), /)
+
+      CALL MATOUT(SOVL, NATO, NATO)
+      WRITE(*, *) "aft matoit1"
+
+
+C.... PRINTING THE CORE MATRIX
+
+      WRITE(*, 2)
+ 2    FORMAT(/, 11HCORE MATRIX, /, 11(1H-), /)
+
+      CALL MATOUT(HCORE, NATO, NATO)
+      WRITE(*, *) "aft matoit2"
+
+
+C.... ***************************************************** ....C
+
+C.... SAVING THE CORE MATRIX INTO THE MATRICES HCORE AND SOVL INTO HCORP AND
+C.... SOVLP RESPECTIVELY
+
+      CALL SAVEM(SOVL, SOVLP, NATO, NATO)
+      CALL SAVEM(HCORE, HCORP, NATO, NATO)
+c
+C.... COMPUTING THE INITIAL GUESS. THE GUESS IS THE SOLUTION OF THE
+C.... CORE MATRIX
+
+c      CALL DSYGV(1, HCORP,N_ORB, SOVLP,N_ORB, EIGV, EIGF,N_ORB, NATO,
+c     $                                                    AUX, 2*NATO)
+      
+      eps = 1.0d-12
+      call eign(EIGF,EIGV,N_ORB,nato,eps,fail)
+      WRITE(*, *) "aft hcore"
+
+      ETOT = 0.0d0
+      DO 120 I = 1,NOCC
+      ETOT = ETOT + EIGV(I)
+120   CONTINUE
+      write(*,*)"etot scf",2.0d0*ETOT
+	WRITE(*, 3)
+ 3    FORMAT(12HEIGEN VALUES, /, 12(1H-), /)
+
+	WRITE(*, 4)(EIGV(I), I=1, NATO)
+ 4    FORMAT(12(D12.6, 1X))
+      WRITE(*,*)
+
+	WRITE(*, 6)
+ 6    FORMAT(/, 15HEIGEN FUNCTIONS, /, 15(1H-))
+
+	CALL MATOUT(EIGF, NATO, NATO)
+
+C.... COMPUTATION OF THE FIRST DENSITY MATRIX
+
+      CALL DENSM(NATO, NOCC, EIGF, PMN)
+
+	WRITE(*, 7)
+ 7    FORMAT(/, 24HTHE GUESS DENSITY MATRIX, /, 24(1H-))
+
+	CALL MATOUT(PMN, NATO, NATO)
+
+C.... FIRST APPROXIMATION OF THE TOTAL ENERGY
+C.... THE CORE ELECTRONIC ENERGY
+
+      CALL ECORE(NATO, HCORE, PMN, E0)
+
+C.... THE TWO-ELECTRON ENERGY
+
+      CALL TEENER(NATO, FATIMA, PMN, E1)
+
+      WRITE(*, 8)E0, ENC+E1, ENC+E0+E1
+ 8    FORMAT(13HCORE ENERGY :, D16.10, 2X, 18HREPULSION ENERGY :,
+     $       D16.10, 2X, 14HTOTAL ENERGY :, D16.10, /, 97(1H-), /)
+
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      CALL CHDENS(NATOM, NATO, NORBAT, NUMAT, SOVL, PMN, EDENS, CHDNS)
+      write(*, *)'ATOMIC CHARGES '
+      CALL VECTOUT(EDENS, NATOM)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+C.... ************************************************************ ....C
+
+      EN1  = E0 + E1
+      EN2  = 0.D0
+      EPS  = 1.D-15
+      ITER = 0
+
+
+      DO 15 WHILE(DABS(EN1-EN2) .GT. EPS .AND. ITER .LE. 24)
+
+       EN1 = EN2
+
+       CALL FOCKER(NATO, HCORE, FATIMA, PMN, FOCK)
+
+	WRITE(*, 9)ITER+1
+ 9     FORMAT(31H FOCK MATRIX OF THE ITERATION :, I3, /, 33(1H-), /)
+	CALL MATOUT(FOCK, NATO, NATO)
+
+
+C.... SAVING THE OVERLAP AND THE FOCK MATRICES
+
+       CALL SAVEM(SOVL, SOVLP, NATO, NATO)
+       CALL SAVEM(FOCK, FOCKP, NATO, NATO)
+
+
+
+c
+cc      DO 116 I = 1,NATO
+cc      DO 115 J = 1,NATO
+cc      SOVLP(I,J) = 0.0d0
+c 116  CONTINUE
+cwat      SOVLP(I,I) = 1.115d0
+c      TEMP = SOVLP(I,J)
+c      SOVLP(I,J) = TEMP/1.4d0
+cc 115  CONTINUE
+ccm      SOVLP(I,I) = 1.105d0
+cc 116  CONTINUE
+
+C.... DIAGONALIZATION OF THE FOCK MATRIX
+
+      call eign(eigf,eigv,N_ORB,nato,eps,fail)
+      WRITE(*, *) "aft fock"
+
+ 
+c      CALL DSYGV(1, FOCK, N_ORB, SOVLP,N_ORB, EIGV, EIGF,N_ORB, NATO,
+c     $                                                    AUX, 2*NATO)
+	WRITE(*, 3)
+	CALL VECTOUT(EIGV, NATO)
+	WRITE(*, 11)ITER+1
+ 11   FORMAT(32HEIGEN MATRIX FOR THE ITERATION :, I2, /, 34(1H-), /)
+	CALL MATOUT(EIGF, NATO, NATO)
+
+C.... COMPUTATION OF THE NTH DENSITY MATRIX
+
+      CALL DENSM(NATO, NOCC, EIGF, PMN)
+      write(*, *)'DENSITY MATRIX '
+ccc	call matout(pmn, nato, nato)
+
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      CALL CHDENS(NATOM, NATO, NORBAT, NUMAT, SOVL, PMN, EDENS, CHDNS)
+      write(*, *)'ATOMIC CHARGES '
+ccc      CALL VECTOUT(EDENS, NATOM)
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+C.... COMPUTATION OF THE NTH APPROXIMATION THE TWO-ELECTRON ENERGY
+
+       CALL ECORE (NATO, HCORE, PMN, E0)
+       CALL ECORE (NATO, HZCORE, PMN, EK)
+       CALL TEENER(NATO, FATIMA, PMN, E1)
+      write(*,*)"in scfclo ekinetic", EK
+
+C.... COMPUTATION OF THE NTH APPROXIMATION OF THE ELECTRONIC ENERGY
+
+       EN2 = E0 + E1
+
+       WRITE(*, 8) E0, ENC+E1, ENC+EN2
+
+C.... INCREMENTING THE ITERATION LIMIT
+
+      ITER = ITER + 1
+
+ 15   CONTINUE
+
+	WRITE(*,17)
+ 17   FORMAT(16HDENSITY MATRIX :, /, 16(1H-), /)
+	CALL MATOUT (PMN, NATO, NATO)
+
+
+C.... ELECTRONIC CHARGE DENSITY ANALYSIS
+
+      CALL CHDENS(NATOM, NATO, NORBAT, NUMAT, SOVL, PMN, EDENS, CHDNS)
+
+      WRITE(*, 13)
+ 13   FORMAT(80(1H*), /, 1H*, 78X, 1H*, /, 1H*, 15X,
+     $       48HMULLIKEN POPULATION ANALYSIS, ELECTRONIC CHARGES,
+     $       15X, 1H*, /, 1H*, 78X, 1H*, / 80(1H*))
+
+      CALL VECTOUT(EDENS, NATOM)
+
+C.... TOTAL NUMBER OF ELECTRON INVOLVED IN THE SYSTEM
+
+C     ZTOT = 0.D0
+C     DO 156 I=1, NATO
+C     DO 156 J=1, NATO
+C      ZTOT = ZTOT + CHDNS(I, J)
+C156  CONTINUE
+
+      ZTOT = 0.D0
+      DO 156 I=1, NATOM
+       ZTOT = ZTOT + EDENS(I)
+ 156  CONTINUE
+
+      WRITE(*, 14)ZTOT
+ 14   FORMAT(30HNUMBER OF ELECTRONS INVOLVED :, D16.10, /, 53(1H-), /)
+
+C.... SUMMARY OF THE INFORMATIONS
+
+      WRITE(*, 16)ITER, ENC+EN2, EN2-EN1
+ 16   FORMAT(25HSCF EXITED AT ITERATION :, I2, 2X, 13HWITH ENERGY :,
+     $                                 D16.10, 2X, 10HGRADIENT :, D12.6)
+
+ 110  RETURN
+      END

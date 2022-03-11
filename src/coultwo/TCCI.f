@@ -1,0 +1,195 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C *********************************************************************** C
+C *             USAGE STRICTEMENT RESERVE POUR STOP-95                  * C
+C *                                                                     * C
+C * PROGRAMMER : AHMED BOUFERGUENE            OCT 17 1994               * C
+C *     LABORATOIRE DE CATALYSE ET SPECTROCHIMIE, CAEN, FRANCE          * C
+C *                                                                     * C
+C * THIS ROUTINE RETURNS A SET OF TWO-CENTER COULOMB INTEGRALS OVER A   * C
+C * SLATER ORBITAL BASIS SET USING A TWO-RANGE ON-CENTER EXPANSION      * C
+C * METHOD.                                                             * C
+C *                                                                     * C
+C * INPUT :                                                             * C
+C *   NEPSIL : ORDER OF THE EPSILON ALGORITHM USED TO ACCELERATION      * C
+C *                                                                     * C
+C *   LM123 : IS THE HIGHEST VALUE OF THE QUANTUM NUMBER L              * C
+C *                                                                     * C
+C *   NORB1, NORB2 : NUMBER OF ORBITALS DESCRIBING THE CENTERS          * C
+C *                                                                     * C
+C *   NLMA, ZETAA, NLMB, ZETAB : ARRAYS CONTAINING THE DESCRIPPTION OF  * C
+C *    ORBITALS, i.e. QUANTUM NUMBERS AND SLATER EXPONENTS              * C
+C *                                                                     * C
+C *   AB, THETAB, PHIAB : SPHERICAL COORDINATES OF THE AB VECTOR        * C
+C *                                                                     * C
+C * OUTPUT :                                                            * C
+C *   FATIMA : IS A ONE-DIMENSIONAL ARRAY CONTAINING THE TWO-ELECTRONS  * C
+C *    INTEGRALS <I J | K L>                                            * C
+C *********************************************************************** C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE TCCI(NEPSIL, NTORB,NSUM, LM123, NORB1,NORB2,
+     $                  NLMA,NLMB, ZETAA,ZETAB, AB,THETAB,PHIAB, FATIMA)
+
+      IMPLICIT REAL*8 (A-H, O-Z)
+      COMPLEX*16 OUIZA
+      INCLUDE "../lib95/SIZE.INCL"
+      INCLUDE "../lib95/CONST.INCL"
+
+      DIMENSION NLMA(*), NLMB(*), ZETAA(*), ZETAB(*), FATIMA(*)
+      DIMENSION YLMAB(0:(LDEV*(LDEV+1))/2)
+      DIMENSION RADAR((L1MAX+1)*(L1MAX+1)*(2*L1MAX+1)*(4*L1MAX+1))
+      DIMENSION ARGNT1(L3MAX+1), ARGNT2((2*(L3MAX+L4MAX)+1)**3),
+     $       ARGNTA(L1MAX+1), ARGNTB(L1MAX+L2MAX+L3MAX+L4MAX+1), INX(7)
+
+      DIMENSION OUIZA(20,20,20,20)
+
+      COMMON/FACT0/FACT(0:30)
+      COMMON/DFACT/DFAC(0:100)
+      COMMON/GLE01/RLEG01(L001+L002+L003)
+      COMMON/GLE02/RLEG02(L004+L005+L006)
+      COMMON/BESS0/BESF01(2*LTOT6)
+      COMMON/X4POW/X4NL(10*LTOT6)
+      COMMON/GLAE0/RLEAG0(LMHERM), ISP
+      COMMON/BESHER/HEREX(LTOT6*LMHERM), BESS01(LTOT6*(LDEV+1))
+      COMMON/COMG00/GEGIN0(LMHERM*LMHERM*(LMDMAX+L1MAX+L2MAX+1))
+      COMMON/COMV00/VL((NORBM*(NORBM+1))/2*(L1MAX+L2MAX+1)*LEA03)
+      COMMON/INTEGN/NINT
+
+c      if(ab.gt.4)then
+c      tccivr=1/ab
+c      goto 100
+c      endif
+C.... CASE OF LINEAR SYSTEMS
+
+      REMAIN = DABS(DMOD(THETAB, PI))
+
+C.... COMPUTATION OF THE REQUIRED SPHERICAL HARMONICS
+
+      CALL YLMV0(THETAB, YLMAB)
+
+C.... COLLECTING THE ROOTS OF THE GAUSS-LEGENDRE QUADRATURES FOR COMPUTING
+C.... THE RADIAL INTEGRAL AND OF COURSE THE ONE-CENTER CHARGE DISTRIBUTION
+
+      CALL DUMMY0(AB, LEG04)
+
+C.... COMPUTATION OF SOME VALUES OF THE ONE-CENTER CHARGE DITRIBUTION
+C.... POTENTIAL
+c      LEG04 = 32
+      CALL OCCDP(L1MAX+L2MAX, NORB1, NLMA,ZETAA, RLEAG0,LEG04,LEA03, VL)
+c      CALL OCCDP(L1MAX+L2MAX, NORB1, NLMA,ZETAA, RLEAG0,64,LEA03, VL)
+
+C.... COMPUTATION OF THE MODIFIED BESSEL FUNCTION I ONCE AND FOR ALL OVER
+C.... THE ROOTS OF THE GAUSS-LEGENDRE QUADRATURE
+C.... SINCE, THE PARAMTER NONE IS SET TO A NEGATIVE INTEGER, THE
+C.... PARAMETER DUMMY IS NOT USED AND THEREFORE IS ARBITRARY.
+
+      DUMMY = 1.D0
+      NONE  = -1
+
+      IN = 1
+      CALL ABIN02(DUMMY, AB, NONE, RLEG01,L1_3, RLEG02,L4_6,
+     $                   RLEAG0, IN, LEA03, BESF01, X4NL, HEREX, BESS01)
+
+
+C.... COMBINATION OF THE GIVEN SLATER ORBITALS
+
+      DO 5 NAT4=1, NORB2
+       LST   = 5*(NAT4-1)
+       NO4   = NLMB(LST+2)
+       N4    = NLMB(LST+3)
+       L4    = NLMB(LST+4)
+       M4    = NLMB(LST+5)
+       ZETA4 = ZETAB(NAT4)
+
+      DO 5 NAT3=NAT4, NORB2
+       KST   = 5*(NAT3-1)
+       NO3   = NLMB(KST+2)
+       N3    = NLMB(KST+3)
+       L3    = NLMB(KST+4)
+       M3    = NLMB(KST+5)
+       ZETA3 = ZETAB(NAT3)
+
+C.... COMPUTATION OF THE GAUSS-LAGUERRE ROOTS AND THE WHOLE COEFFICIENTS
+C.... INVOLVED IN THE GENERALIZED GEGENBAUER ADDITION THEOREM
+
+      CALL GEGEN3(LM123, N3,L3,ZETA3, N4,L4,ZETA4, AB, RLEG01,
+     $                                     RLEG02, BESF01, X4NL, GEGIN0)
+
+C.... COMPUTATION OF THE COEFFICIENTS OCCURING IN THE SOLID SPHERICAL
+C.... HARMONICS ADDITION AND MULTIPLICATION THEOREMS
+
+       CALL GUSED(DFAC, L3,M3, L4,M4, AB, YLMAB, ARGNT1, ARGNT2)
+
+C.... INITIALIZATION OF THE INTEGER 'INDEX' USED FOR A CORRECT STORAGE IN OCCDP1
+
+      INDEX = 0
+
+      DO 5 NAT2=1, NORB1
+       JST   = 5*(NAT2-1)
+       NO2   = NLMA(JST+2)
+       N2    = NLMA(JST+3)
+       L2    = NLMA(JST+4)
+       M2    = NLMA(JST+5)
+       ZETA2 = ZETAA(NAT2)
+
+      DO 5 NAT1=NAT2, NORB1
+       IST   = 5*(NAT1-1)
+       NO1   = NLMA(IST+2)
+       N1    = NLMA(IST+3)
+       L1    = NLMA(IST+4)
+       M1    = NLMA(IST+5)
+       ZETA1 = ZETAA(NAT1)
+
+C.... COMPUTATION OF THE VALUES OF THE ONE-CENTER CHARGE DITRIBUTION
+C.... DEPENDING ON THE ROOTS OF THE GAUSS-LAGUERRE QUADRATURE
+
+       N12    = N1+N2
+       L12    = L1+L2
+       ZETA12 = ZETA1+ZETA2
+
+       CALL OCCDP1(L1MAX+L2MAX, INDEX, N12, L12, ZETA12, RLEAG0,LEG04,
+     $                                                        LEA03, VL)
+
+C.... COMPUTATION OF THE RADIAL INTEGRAL
+
+       CALL RTCCI(INDEX, L1,L2,L3,L4, AB, ZETA3,ZETA4, RADAR)
+       INDEX = INDEX + 1
+
+C.... ******************************************************** ....C
+
+C.... GLOBAL AZIMUTHAL ANGLE
+
+      ANGLE  = ((M4-M3) + (M2-M1))*PHIAB
+      COSINE = DCOS(ANGLE)
+      SINE   = DSIN(ANGLE)
+
+      BNGLE  = ((M4-M3) - (M2-M1))*PHIAB
+      COS1   = DCOS(BNGLE)
+      SIN1   = DSIN(BNGLE)
+
+      CALL TCCINS(N1,L1,M1, N2,L2,M2, N3,L3,M3, N4,L4,M4, ZETA1,
+     $    ZETA2,ZETA3,ZETA4, AB,YLMAB,PHIAB, ARGNT1,ARGNT2, RADAR,
+     $                                                 TCCV, TCCV1)
+
+      TCCVR = TCCV * COSINE
+      TCCVI = TCCV * SINE
+
+      TCCV1R = TCCV1 * COS1
+      TCCV1I = TCCV1 * SIN1
+
+      OUIZA(NAT1,NAT2,NAT3,NAT4) = DCMPLX(TCCVR ,  TCCVI )
+      OUIZA(NAT2,NAT1,NAT4,NAT3) = DCMPLX(TCCVR , -TCCVI )
+      OUIZA(NAT2,NAT1,NAT3,NAT4) = DCMPLX(TCCV1R,  TCCV1I)
+      OUIZA(NAT1,NAT2,NAT4,NAT3) = DCMPLX(TCCV1R, -TCCV1I)
+
+      WRITE(*, 1) NO1,NO2,NO3,NO4, TCCVR, TCCVI, tccv1r, tccv1i
+      
+ 5    CONTINUE
+
+ 1    FORMAT(4(I2, 1X), 4(D10.4, 1X))
+
+      CALL REAL02(NORB1,NORB2, NLMA,NLMB,
+     $                                       NTORB, NSUM, OUIZA, FATIMA)
+  100 continue
+      RETURN
+      END

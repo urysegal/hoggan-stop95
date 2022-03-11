@@ -1,0 +1,84 @@
+C.... RADIAL INTEGRALS OF FOUR CENTER INTEGRALS
+
+      SUBROUTINE RADFC(NAT4, L1,L2,L3,L4, INDVL0, LM4D,
+     $                                        RMIN, RMAX, ZETAMY, RADAR)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "../lib95/SIZE.INCL"
+      DIMENSION RADAR(*)
+      COMMON/COMG01/GEGIN1(NORBM/2*(LDEV+1)*LEA11)
+      COMMON/COMG02/GEGIN2((2*LDEV+1)*LEA11)
+      COMMON/COMV00/VL(20*20*(LDEV+1)*LEA12)
+      COMMON/EXCH041/NAT4P, INDVL, IND1, IND2, LMD3, LMD4, LP3, LP4,NSTR
+
+      EXTERNAL RAD13
+
+
+C.... PASSAGE TO THE EXCH041 COMMON
+
+      NAT4P = NAT4
+
+      INDEX = 1
+
+      DO 5 L=0, LMDMAX
+      DO 5 LP2=0, L2
+      DO 5 LP12=IABS(L1-LP2), L1+LP2, 2
+      DO 5 LMD2=IABS(L-LP12), L+LP12, 2
+
+       INDVL  = (INDVL0-1)*LEA11
+       INDVL0 = INDVL0 + 1
+
+      DO 5 LP3=0, L3
+      DO 5 LP4=0, L4
+
+      DO 5 LP34=IABS(LP3-LP4), LP3+LP4, 2
+
+      DO 5 LMD=IABS(L-LP34), L+LP34, 2
+
+      DO 5 LMD4=0, LMDMAX
+
+       IND2 = (NAT4-1)*(LM4D+1)*LEA11 + LMD4*LEA11
+
+      DO 5 LMD3=IABS(LMD-LMD4), LMD+LMD4, 2
+
+       IND1         = LMD3*LEA11
+
+       NSTR         = 0
+       XINT1        = DGLNQ(RAD13, 0.D0, RMIN, LEG16)
+
+       NSTR         = NSTR + LEG16
+       XINT2        = DGLNQ(RAD13, RMIN, RMAX, LEG17)
+
+       NSTR         = NSTR + LEG17
+       XINT3        = DGLGQ(RAD13, RMAX, ZETAMY, LAG11)
+
+       RADAR(INDEX) = XINT1 + XINT2 + XINT3
+
+       INDEX        = INDEX + 1
+
+ 5    CONTINUE
+
+      RETURN
+      END
+
+
+
+      SUBROUTINE RAD13(T, Y, N)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "../lib95/SIZE.INCL"
+      DIMENSION T(*), Y(*)
+      COMMON/COMG01/GEGIN1(NORBM/2*(LDEV+1)*LEA11)
+      COMMON/COMG02/GEGIN2((2*LDEV+1)*LEA11)
+      COMMON/COMV00/VL(20*20*(LDEV+1)*LEA12)
+      COMMON/EXCH041/NAT4P, INDVL, IND1, IND2, LMD3, LMD4, LP3, LP4,NSTR
+
+
+      DO 5 I=1, N
+       R2 = T(I)
+
+       Y(I) = R2**(LP3+LP4+1) * GEGIN2(IND1+NSTR+I) *
+     $                            GEGIN1(IND2+NSTR+I) * VL(INDVL+NSTR+I)
+
+ 5    CONTINUE
+
+      RETURN
+      END

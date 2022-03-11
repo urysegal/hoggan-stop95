@@ -1,0 +1,61 @@
+C.... SLATER TYPE ORBITALS PRODUCT ADDITION THEOREM
+
+      SUBROUTINE STOPAT(NAT4, LM4D,GEGIN2, LM3D,GEGIN1, PHIAC,YLMAC,
+     $                                                      PHIAD,YLMAD)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "../lib95/SIZE.INCL"
+      DIMENSION GEGIN2(*), GEGIN1(*), YLMAC(0:*), YLMAD(0:*)
+      COMMON/COMG03/GEGIN3(0:(LMDMAX+1)*(LMDMAX+1)*LEA11)
+      COMMON/GLAE0/RLEAG0(LMHERM), ISP
+      COMMON/XGONE/GONE((LMDMAX+1)**2 * (LMDMAX+6+1)**2, LMDMAX+3+1)
+      DIMENSION ARGNT(100)
+
+
+      DO 10 LMD=0, LMDMAX
+       NSTR = LMD*LMD*LEA11
+       NEND = NSTR + (2*LMD+1)*LEA11
+       CALL RAZ0(GEGIN3, NSTR, NEND)
+
+      DO 10 MU=-LMD, LMD
+       JNDEX = NSTR + (MU+LMD)*LEA11
+
+       write(*, *)
+
+       ali = 0.d0
+      DO 10 LMD4=0, LM4D
+
+	write(*, *)ali
+
+      DO 10 MU4=-LMD4, LMD4
+       NYL4 = (LMD4*(LMD4+1))/2 + IABS(MU4)
+
+       ANGLE1 = (MU-MU4) * PHIAC
+       ANGLE2 = MU4 * PHIAD
+       COS34  = DCOS(ANGLE1)*DCOS(ANGLE2)
+
+       LMD3X = LMD + LMD4
+       LMD3M = 2*((LMD3X+MAX0(IABS(LMD4-LMD),IABS(MU-MU4))+1)/2)-LMD3X
+
+       CALL GAUNT(LMD4,MU4, LMD,MU, LMD3N,LMD3X, M, NGAUNT, ARGNT)
+
+       KGN = 0
+      DO 10 LMD3=LMD3N, LMD3X, 2
+       NYL3 = (LMD3*(LMD3+1))/2 + IABS(MU-MU4)
+       KGN = KGN+1
+
+      DO 10 I=1, LEA11
+       INDEX = JNDEX + I
+       IND2  = (NAT4-1)*(LM4D+1)*LEA11 + LMD4*LEA11 + I
+       IND1  = LMD3*LEA11 + I
+
+
+       GEGIN3(INDEX) = GEGIN3(INDEX) + GEGIN1(IND1) * GEGIN2(IND2) *
+     $                    ARGNT(KGN) * YLMAC(NYL3) * YLMAD(NYL4) * COS34
+
+       ali = ali + GEGIN1(IND1) * GEGIN2(IND2) *
+     $                    ARGNT(KGN) * YLMAC(NYL3) * YLMAD(NYL4) * COS34
+
+ 10   CONTINUE
+
+      RETURN
+      END

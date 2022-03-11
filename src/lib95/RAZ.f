@@ -1,0 +1,40 @@
+      SUBROUTINE RAZ0(ARVAL, NMIN, NMAX)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      DIMENSION ARVAL(0:*)
+
+      DO 5 I=NMIN, NMAX
+       ARVAL(I) = 0.D0
+ 5    CONTINUE
+
+      RETURN
+      END
+
+
+
+      SUBROUTINE RAZ1(INX, NMIN, NMAX)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      DIMENSION INX(*)
+
+      DO 5 I=NMIN, NMAX
+       INX(I) = 0
+ 5    CONTINUE
+
+      RETURN
+      END
+
+
+
+
+
+      SUBROUTINE RAZ2(HCORE, NMIN1,NMAX1, NMIN2,NMAX2)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "SIZE.INCL"
+      DIMENSION HCORE(N_ORB, N_ORB)
+
+      DO 5 I=NMIN1, NMAX1
+      DO 5 J=NMIN2, NMAX2
+       HCORE(I, J) = 0.D0
+ 5    CONTINUE
+
+      RETURN
+      END

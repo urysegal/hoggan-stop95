@@ -1,0 +1,78 @@
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+C *********************************************************************** C
+C *             USAGE STRICTEMENT RESERVE POUR STOP-95                  * C
+C *                                                                     * C
+C * PROGRAMMER : AHMED BOUFERGUENE            JAN 06 1995               * C
+C *     LABORATOIRE DE CATALYSE ET SPECTROCHIMIE, CAEN, FRANCE          * C
+C *                                                                     * C
+C * THIS ROUTINE RETURNS A STREAM OF FOUR-CENTER INTEGRALS OVER SLATER  * C
+C * ORBITALS.                                                           * C
+C *********************************************************************** C
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+      SUBROUTINE TETRA(NEPSIL, NTORB,NSUM, LM123, IC1,IC2,IC3,IC4,
+     $                      NORBAT, NLMAT,ZETAAT, ZETAMY, XYZAT, FATIMA)
+
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INTEGER ZETST1, ZETST2, ZETST3, ZETST4
+
+      DIMENSION NORBAT(*), NLMAT(*), ZETAAT(*), ZETAMY(*), XYZAT(*),
+     $                                                         FATIMA(*)
+
+      DIMENSION XYZV(3)
+      DATA RADEG/1.74532925199432958D-2/
+
+
+cccc      WRITE(*, 1)IC1, IC2, IC3, IC4
+cccc 1    FORMAT('TETRA : ', 4(I2, 2X))
+
+C.... COMPUTATION OF THE COORDINATES OF THE CENTERS LABELED IC2, IC3 AND IC4
+C.... TO WHICH THE ORBITALS X2(1), X3(2) AND X4(2) ARE ATTACHED
+
+      NIC1 = 3*(IC1-1)+1
+      NIC2 = 3*(IC2-1)+1
+      NIC3 = 3*(IC3-1)+1
+      NIC4 = 3*(IC4-1)+1
+
+      CALL CARTCO(XYZAT(NIC1),XYZAT(NIC2), XYZV, RB,THETRB,PHIRB)
+      CALL CARTCO(XYZAT(NIC1),XYZAT(NIC3), XYZV, RC,THETRC,PHIRC)
+      CALL CARTCO(XYZAT(NIC1),XYZAT(NIC4), XYZV, RD,THETRD,PHIRD)
+
+C.... VERIFYING THE EQUALITIES AB, AC, AD
+
+      IF(DABS(RB-RC) .LE. 1.D-7)THEN
+       RC = RB
+      ENDIF
+
+      IF(DABS(RB-RD) .LE. 1.D-7)THEN
+       RD = RB
+      ENDIF
+
+      IF(DABS(RC-RD) .LE. 1.D-7)THEN
+       RD = RC
+      ENDIF
+
+C.... COMPUTATION OF THE STARTING INDICES FOR THE ORBITALS AND THE SLATER
+C.... EXPONENTS
+
+      CALL NDXSTR(NORBAT, IC1, NLMST1, ZETST1)
+      CALL NDXSTR(NORBAT, IC2, NLMST2, ZETST2)
+      CALL NDXSTR(NORBAT, IC3, NLMST3, ZETST3)
+      CALL NDXSTR(NORBAT, IC4, NLMST4, ZETST4)
+
+C.... COMPUTATION OF THE FOUR-CENTER INTEGRALS
+
+      ZETAMOY = (ZETAMY(IC1) + ZETAMY(IC2) +
+     $                    ZETAMY(IC3) + ZETAMY(IC4))
+      zzi=zetamoy*(rb+rc+rd)*0.5d0
+c      goto 100
+      if(dexp(-zzi).lt.1.0d-05)goto 100
+      CALL TETRAC(NEPSIL, NTORB,NSUM, LM123,
+     $    NORBAT(IC1),NORBAT(IC2),NORBAT(IC3),NORBAT(IC4),
+     $    NLMAT(NLMST1),NLMAT(NLMST2),NLMAT(NLMST3),NLMAT(NLMST4),
+     $    ZETAAT(ZETST1),ZETAAT(ZETST2),ZETAAT(ZETST3),ZETAAT(ZETST4),
+     $    ZETAMOY, RB,THETRB,PHIRB, RC,THETRC,PHIRC, RD,THETRD,PHIRD,
+     $                                                           FATIMA)
+  100 continue
+      RETURN
+      END

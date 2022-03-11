@@ -1,0 +1,41 @@
+      SUBROUTINE YLMV0(THETAB, YLMAB)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "SIZE.INCL"
+      DIMENSION YLMAB(0:*), YLMO(0:LDEV)
+
+      DO 5 MU=0, LDEV
+       CALL SPHRM(LDEV, MU, DCOS(THETAB), YLMO)
+       NAB = (MU*(MU+1))/2 + MU
+      DO 5 LMD=MU, LDEV
+       YLMAB(NAB) = YLMO(LMD)
+       NAB        = NAB + LMD + 1
+ 5    CONTINUE
+
+      RETURN
+      END
+
+
+      SUBROUTINE YLMV1(THETAB, THETAC, YLMAB, YLMAC)
+      IMPLICIT REAL*8 (A-H, O-Z)
+      INCLUDE "SIZE.INCL"
+      DIMENSION YLMAB(0:*), YLMAC(0:*), YLMO(0:LDEV)
+
+
+      DO 5 MU=0, LDEV
+       CALL SPHRM(LDEV, MU, DCOS(THETAB), YLMO)
+       NAB = (MU*(MU+1))/2 + MU
+      DO 5 LMD=MU, LDEV
+       YLMAB(NAB) = YLMO(LMD)
+       NAB        = NAB + LMD + 1
+ 5    CONTINUE
+
+      DO 10 MU=0, LDEV
+       CALL SPHRM(LDEV, MU, DCOS(THETAC), YLMO)
+       NAC = (MU*(MU+1))/2 + MU
+      DO 10 LMD=MU, LDEV
+       YLMAC(NAC) = YLMO(LMD)
+       NAC        = NAC + LMD + 1
+ 10   CONTINUE
+
+      RETURN
+      END
